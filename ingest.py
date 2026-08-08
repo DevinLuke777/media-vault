@@ -128,6 +128,23 @@ META_FUNCS = {
     "Twitter": get_meta_x,
 }
 
+def bark_notify(row):
+    """新收藏通知（Bark）：BARK_URL 环境变量为空则不推送"""
+    url = os.environ.get("BARK_URL", "")
+    if not url:
+        return
+    title = f"📥 新收藏 [{row['platform']}]"
+    body = row["title"] or "无标题"
+    if row.get("author_name"):
+        body += f"\n👤 {row['author_name']}"
+    if row.get("post_date"):
+        body += f"\n🕐 {row['post_date']}"
+    try:
+        u = f"{url.rstrip('/')}/{urllib.parse.quote(title)}/{urllib.parse.quote(body)}"
+        urllib.request.urlopen(urllib.request.Request(u), timeout=8).read()
+    except Exception:
+        pass
+
 def ingest(platform, url, local_path, title=None, author=None, avatar=None, content=None, post_date=None, force=False):
     meta = {}
     fn = META_FUNCS.get(platform)
@@ -165,6 +182,9 @@ def ingest(platform, url, local_path, title=None, author=None, avatar=None, cont
             VALUES (:platform,:title,:content,:author_name,:author_avatar,:post_date,:original_url,:local_path)""", row)
         conn.commit()
         print(f"✅ 入库: [{platform}] {row['title'] or '无标题'} 作者:{row['author_name'] or '?'}")
+        conn.close()
+        bark_notify(row)  # 新收藏通知
+        return
     except Exception as e:
         print(f"❌ 入库失败: {e}")
     finally:
