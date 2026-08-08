@@ -1,0 +1,10 @@
+# 数据库与私人数据（绝不提交）
+*.db
+avatars/
+__pycache__/
+*.pyc
+
+# 本地运行产生的文件
+.venv/
+.env
+.DS_Store
