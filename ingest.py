@@ -128,7 +128,7 @@ META_FUNCS = {
     "Twitter": get_meta_x,
 }
 
-def ingest(platform, url, local_path, title=None, author=None, avatar=None, content=None, post_date=None):
+def ingest(platform, url, local_path, title=None, author=None, avatar=None, content=None, post_date=None, force=False):
     meta = {}
     fn = META_FUNCS.get(platform)
     if fn:
@@ -152,6 +152,14 @@ def ingest(platform, url, local_path, title=None, author=None, avatar=None, cont
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     try:
+        # 去重保护：original_url 已存在 → 提示并跳过（除非 --force）
+        if url and not force:
+            dup = cur.execute("SELECT id, title, created_at FROM items WHERE original_url=?",
+                              (url,)).fetchone()
+            if dup:
+                print(f"⚠️ 已收藏过 (id={dup[0]})「{dup[1] or '无标题'}」（采集于 {dup[2]}），跳过。用 --force 强制更新")
+                conn.close()
+                return
         cur.execute("""INSERT OR REPLACE INTO items
             (platform, title, content, author_name, author_avatar, post_date, original_url, local_path)
             VALUES (:platform,:title,:content,:author_name,:author_avatar,:post_date,:original_url,:local_path)""", row)
@@ -208,11 +216,13 @@ if __name__ == "__main__":
     ap.add_argument("--content")
     ap.add_argument("--date")
     ap.add_argument("--scan", action="store_true")
+    ap.add_argument("--force", action="store_true", help="重复链接时强制覆盖更新")
     args = ap.parse_args()
     if args.scan:
         scan_and_ingest()
     elif args.platform and args.url:
-        ingest(args.platform, args.url, args.path, args.title, args.author, args.avatar, args.content, args.date)
+        ingest(args.platform, args.url, args.path, args.title, args.author, args.avatar, args.content, args.date, args.force)
     else:
         print("用法: python3 ingest.py --platform 抖音 --url <链接> --path <相对路径> [--title ...]")
         print("      python3 ingest.py --scan")
+        print("      python3 ingest.py --platform 小红书 --url <链接> --path <路径> --force   # 强制更新重复项")
