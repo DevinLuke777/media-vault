@@ -73,7 +73,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 </head>
 <body>
 <div class="topbar">
-  <h1>媒体宝库</h1>
+  <h1>媒体宝库 <a href="/stats" style="font-size:13px;color:#eef;text-decoration:none;margin-left:8px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">📊 统计</a></h1>
   <form class="search-row" method="get">
     <input type="text" name="q" placeholder="搜索标题/作者/内容…" value="{{ q }}">
   </form>
@@ -325,6 +325,90 @@ def index():
         url_no_plat=url_no_plat,
         url_created="/?" + urlencode(created_args),
         url_posted="/?" + urlencode(posted_args))
+
+@app.route("/stats")
+def stats():
+    """统计面板：平台分布 / 作者Top / 收藏趋势"""
+    conn = db()
+    platforms = conn.execute("SELECT platform, COUNT(*) c FROM items GROUP BY platform ORDER BY c DESC").fetchall()
+    authors = conn.execute("SELECT author_name, COUNT(*) c FROM items WHERE author_name IS NOT NULL AND author_name != '' GROUP BY author_name ORDER BY c DESC LIMIT 10").fetchall()
+    trend = conn.execute("SELECT substr(created_at,1,10) d, COUNT(*) c FROM items GROUP BY d ORDER BY d DESC LIMIT 14").fetchall()
+    trend = list(reversed(trend))  # 旧→新
+    total = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    conn.close()
+    max_p = max((r["c"] for r in platforms), default=1)
+    max_a = max((r["c"] for r in authors), default=1)
+    return render_template_string(STATS_HTML, platforms=platforms, authors=authors,
+                                  trend=trend, total=total, max_p=max_p, max_a=max_a)
+
+STATS_HTML = """<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>统计 - 媒体宝库</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#222;padding:20px;max-width:760px;margin:0 auto}
+h1{font-size:20px;margin-bottom:20px}
+.back{display:inline-block;margin-bottom:16px;color:#667eea;text-decoration:none;font-size:14px}
+.card{background:#fff;border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.card h2{font-size:15px;margin-bottom:14px;color:#444}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.row .label{width:90px;font-size:13px;color:#666;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{height:22px;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:4px;min-width:2px;transition:width .4s}
+.row .num{font-size:12px;color:#999;flex-shrink:0}
+.total{font-size:14px;color:#888;margin-bottom:16px}
+.trend-grid{display:flex;align-items:flex-end;gap:4px;height:120px;padding-top:10px}
+.trend-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.trend-bar{width:70%;background:linear-gradient(180deg,#667eea,#764ba2);border-radius:3px 3px 0 0;min-height:2px}
+.trend-date{font-size:10px;color:#aaa;writing-mode:vertical-rl;transform:rotate(180deg);max-height:34px;overflow:hidden}
+</style>
+</head>
+<body>
+<a class="back" href="/">← 返回列表</a>
+<h1>📊 媒体宝库统计</h1>
+<div class="total">共 {{ total }} 条收藏</div>
+
+<div class="card">
+  <h2>🌐 平台分布</h2>
+  {% for p in platforms %}
+  <div class="row">
+    <span class="label">{{ p['platform'] }}</span>
+    <div class="bar" style="width:{{ (p['c'] / max_p * 100)|int }}%"></div>
+    <span class="num">{{ p['c'] }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>👤 作者 Top 10</h2>
+  {% for a in authors %}
+  <div class="row">
+    <span class="label"><a href="/?author={{ a['author_name']|urlencode }}" style="color:#667eea;text-decoration:none">{{ a['author_name'] }}</a></span>
+    <div class="bar" style="width:{{ (a['c'] / max_a * 100)|int }}%"></div>
+    <span class="num">{{ a['c'] }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>📈 收藏趋势（近 {{ trend|length }} 天）</h2>
+  {% if trend %}
+  <div class="trend-grid">
+    {% for t in trend %}
+    <div class="trend-col" title="{{ t['d'] }}: {{ t['c'] }} 条">
+      <div class="trend-bar" style="height:{{ (t['c'] / trend|map(attribute='c')|max * 100)|int }}%"></div>
+      <span class="trend-date">{{ t['d'][5:] }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="color:#999;font-size:13px">暂无数据</div>
+  {% endif %}
+</div>
+</body>
+</html>"""
 
 @app.route("/item/<int:item_id>")
 def detail(item_id):
