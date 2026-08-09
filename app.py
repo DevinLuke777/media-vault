@@ -5,7 +5,7 @@ media-vault Web 展示应用 v4 — 全部重写
 详情页：标题 + 作者信息条 + 正文 + 视频播放 + 图片网格(lightbox)
 """
 import os, re, sqlite3
-from flask import Flask, render_template_string, request, abort, url_for, Response
+from flask import Flask, render_template_string, request, abort, url_for, Response, redirect
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE, "media_library.db"))
@@ -73,7 +73,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 </head>
 <body>
 <div class="topbar">
-  <h1>媒体宝库 <a href="/stats" style="font-size:13px;color:#eef;text-decoration:none;margin-left:8px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">📊 统计</a></h1>
+  <h1>媒体宝库 <a href="/stats" style="font-size:13px;color:#eef;text-decoration:none;margin-left:8px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">📊 统计</a> <a href="/?mode=manage" style="font-size:13px;color:#eef;text-decoration:none;margin-left:6px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">🗑️ 管理</a></h1>
   <form class="search-row" method="get">
     <input type="text" name="q" placeholder="搜索标题/作者/内容…" value="{{ q }}">
   </form>
@@ -98,7 +98,14 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 {% endif %}
 
 <div class="masonry">
+{% if mode == 'manage' %}
+<form method="post" action="/delete-batch" id="batchForm" onsubmit="return confirm('确定删除选中的收藏？本地文件也会一并删除！')">
+{% endif %}
 {% for it in items %}
+{% if mode == 'manage' %}
+<div style="position:relative">
+  <input type="checkbox" name="ids" value="{{ it['id'] }}" style="position:absolute;top:8px;right:8px;z-index:5;width:20px;height:20px;accent-color:#e74c3c">
+{% endif %}
 <a class="card" href="/item/{{ it['id'] }}">
   <div class="cover">
     {% if it['cover'] %}
@@ -115,7 +122,19 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
     <span class="when">{{ it['created_at'][:10] if it['created_at'] else '' }}</span>
   </div>
 </a>
+{% if mode == 'manage' %}
+</div>
+{% endif %}
 {% endfor %}
+{% if mode == 'manage' %}
+<div style="position:sticky;bottom:0;background:var(--card);padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;z-index:50">
+  <label style="font-size:13px;color:var(--sub);display:flex;align-items:center;gap:4px"><input type="checkbox" id="selAll" style="width:16px;height:16px"> 全选</label>
+  <button type="submit" style="background:#e74c3c;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;cursor:pointer">删除选中</button>
+  <a href="/" style="font-size:13px;color:var(--sub);text-decoration:none">退出管理</a>
+</div>
+</form>
+<script>document.getElementById('selAll').onchange=function(){document.querySelectorAll('input[name=ids]').forEach(function(c){c.checked=this.checked},this)}</script>
+{% endif %}
 </div>
 </body>
 </html>"""
@@ -223,6 +242,11 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
       {% endfor %}
     </div>
     {% if it['original_url'] %}<div class="orig">🔗 <a href="{{ it['original_url'] }}" target="_blank">{{ it['original_url'] }}</a></div>{% endif %}
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+      <form method="post" action="/delete/{{ it['id'] }}" onsubmit="return confirm('确定删除这条收藏？本地文件也会一并删除！')">
+        <button type="submit" style="background:#e74c3c;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-size:14px;cursor:pointer">🗑️ 删除这条收藏</button>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -275,6 +299,7 @@ def index():
     plat = request.args.get("platform", "").strip()
     author = request.args.get("author", "").strip()
     sort = request.args.get("sort", "created")
+    mode = request.args.get("mode", "")  # manage=批量管理模式
     conn = db()
     where, params = [], []
     if q:
@@ -321,7 +346,7 @@ def index():
 
     return render_template_string(INDEX_HTML,
         items=card_items, platforms=platforms, q=q, platform=plat,
-        total=len(card_items), author=author, sort=sort,
+        total=len(card_items), author=author, sort=sort, mode=mode,
         url_no_plat=url_no_plat,
         url_created="/?" + urlencode(created_args),
         url_posted="/?" + urlencode(posted_args))
@@ -462,6 +487,39 @@ def avatar(item_id):
             return Response(data, content_type="image/jpeg")
         except Exception:
             abort(404)
+
+@app.route("/delete/<int:item_id>", methods=["POST"])
+def delete_item(item_id):
+    """删除单条收藏：数据库记录 + 媒体目录文件"""
+    conn = db()
+    it = conn.execute("SELECT local_path FROM items WHERE id=?", (item_id,)).fetchone()
+    conn.execute("DELETE FROM items WHERE id=?", (item_id,))
+    conn.commit()
+    conn.close()
+    if it and it["local_path"]:
+        import shutil
+        d = os.path.join(MEDIA_ROOT, it["local_path"])
+        if os.path.isdir(d):
+            shutil.rmtree(d, ignore_errors=True)
+    return redirect(url_for("index"))
+
+@app.route("/delete-batch", methods=["POST"])
+def delete_batch():
+    """批量删除：勾选的 ids 一起删（记录 + 文件）"""
+    ids = request.form.getlist("ids")
+    import shutil
+    conn = db()
+    for i in ids:
+        it = conn.execute("SELECT local_path FROM items WHERE id=?", (i,)).fetchone()
+        if it:
+            conn.execute("DELETE FROM items WHERE id=?", (i,))
+            if it["local_path"]:
+                d = os.path.join(MEDIA_ROOT, it["local_path"])
+                if os.path.isdir(d):
+                    shutil.rmtree(d, ignore_errors=True)
+    conn.commit()
+    conn.close()
+    return redirect(url_for("index"))
 
 @app.route("/media/<path:relpath>")
 def media(relpath):
