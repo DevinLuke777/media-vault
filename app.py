@@ -236,11 +236,6 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
       {% endif %}
     </div>
 
-    <div class="dl">
-      {% for f in files %}
-      <a class="{{ 'vid' if f.lower().endswith(('.mp4','.mov','.mkv','.webm')) else '' }}" href="{{ url_for('media', relpath=f) }}" target="_blank">{{ f.split('/')[-1][-20:] }}</a>
-      {% endfor %}
-    </div>
     {% if it['original_url'] %}<div class="orig">🔗 <a href="{{ it['original_url'] }}" target="_blank">{{ it['original_url'] }}</a></div>{% endif %}
     <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
       <form method="post" action="/delete/{{ it['id'] }}" onsubmit="return confirm('确定删除这条收藏？本地文件也会一并删除！')">
