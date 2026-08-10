@@ -46,9 +46,8 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .stat-bar{padding:8px 16px;font-size:12px;color:var(--sub)}
 
 /* 瀑布流 */
-.masonry{column-count:2;column-gap:10px;padding:0 10px 20px}
-@media(min-width:600px){.masonry{column-count:3}}
-@media(min-width:900px){.masonry{column-count:4}}
+.masonry{display:flex;gap:10px;padding:0 10px 20px;align-items:flex-start}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
 
 /* 卡片 */
 .card{break-inside:avoid;margin-bottom:10px;background:var(--card);border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);display:block;text-decoration:none;color:inherit;transition:box-shadow .15s}
@@ -93,9 +92,11 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 
 <div class="masonry">
 {% if mode == 'manage' %}
-<form method="post" action="/delete-batch" id="batchForm" onsubmit="return confirm('确定删除选中的收藏？本地文件也会一并删除！')">
+<form method="post" action="/delete-batch" id="batchForm" onsubmit="return confirm('确定删除选中的收藏？本地文件也会一并删除！')" style="display:contents">
 {% endif %}
-{% for it in items %}
+{% for col in columns %}
+<div class="col">
+{% for it in col %}
 {% if mode == 'manage' %}
 <div style="position:relative">
   <input type="checkbox" name="ids" value="{{ it['id'] }}" style="position:absolute;top:8px;right:8px;z-index:5;width:20px;height:20px;accent-color:#e74c3c">
@@ -119,6 +120,8 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 {% if mode == 'manage' %}
 </div>
 {% endif %}
+{% endfor %}
+</div>
 {% endfor %}
 {% if mode == 'manage' %}
 <div style="position:sticky;bottom:0;background:var(--card);padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;z-index:50">
@@ -326,7 +329,8 @@ def index():
     url_no_plat = "/?" + urlencode(base_args)
 
     return render_template_string(INDEX_HTML,
-        items=card_items, platforms=platforms, q=q, platform=plat,
+        items=card_items, columns=[card_items[0::2], card_items[1::2]],
+        platforms=platforms, q=q, platform=plat,
         total=len(card_items), author=author, mode=mode,
         url_no_plat=url_no_plat)
 
