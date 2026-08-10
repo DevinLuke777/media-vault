@@ -80,14 +80,8 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
   <div class="filter-row">
     <span class="chip {% if not platform %}active{% endif %}" onclick="location.href='{{ url_no_plat }}'">全部</span>
     {% for p in platforms %}
-    <span class="chip {% if platform==p %}active{% endif %}" onclick="location.href='/?platform={{ p|urlencode }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}'">{{ '推特' if p == 'X' else p }}</span>
+    <span class="chip {% if platform==p %}active{% endif %}" onclick="location.href='/?platform={{ p|urlencode }}{% if q %}&q={{ q|urlencode }}{% endif %}'">{{ '推特' if p == 'X' else p }}</span>
     {% endfor %}
-    <span class="chip" style="border:none">
-      <select onchange="location.href=this.value" style="color:var(--sub)">
-        <option value="{{ url_created }}" {% if sort=='created' %}selected{% endif %}>最新采集</option>
-        <option value="{{ url_posted }}" {% if sort=='posted' %}selected{% endif %}>最新发布</option>
-      </select>
-    </span>
   </div>
 </div>
 
@@ -307,7 +301,7 @@ def index():
         where.append("author_name = ?")
         params.append(author)
     wsql = ("WHERE " + " AND ".join(where)) if where else ""
-    order = "created_at DESC, id DESC" if sort == "created" else "post_date DESC, id DESC"
+    order = "created_at DESC, id DESC"
     items = conn.execute(f"SELECT * FROM items {wsql} ORDER BY {order}", params).fetchall()
     platforms = [r["platform"] for r in conn.execute("SELECT DISTINCT platform FROM items ORDER BY platform")]
     conn.close()
@@ -329,22 +323,12 @@ def index():
 
     base_args = {}
     if q: base_args["q"] = q
-    if sort: base_args["sort"] = sort
     url_no_plat = "/?" + urlencode(base_args)
-    created_args = dict(base_args)
-    created_args["sort"] = "created"
-    posted_args = dict(base_args)
-    posted_args["sort"] = "posted"
-    if plat:
-        created_args["platform"] = plat
-        posted_args["platform"] = plat
 
     return render_template_string(INDEX_HTML,
         items=card_items, platforms=platforms, q=q, platform=plat,
-        total=len(card_items), author=author, sort=sort, mode=mode,
-        url_no_plat=url_no_plat,
-        url_created="/?" + urlencode(created_args),
-        url_posted="/?" + urlencode(posted_args))
+        total=len(card_items), author=author, mode=mode,
+        url_no_plat=url_no_plat)
 
 @app.route("/stats")
 def stats():
