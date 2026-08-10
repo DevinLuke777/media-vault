@@ -312,7 +312,7 @@ def index():
     wsql = ("WHERE " + " AND ".join(where)) if where else ""
     order = "created_at DESC, id DESC" if sort == "created" else "post_date DESC, id DESC"
     items = conn.execute(f"SELECT * FROM items {wsql} ORDER BY {order}", params).fetchall()
-    platforms = [r["platform"] for r in conn.execute("SELECT DISTINCT platform FROM items ORDER BY platform")]
+    platforms = [r["platform"] for r in conn.execute("SELECT platform, COUNT(*) c FROM items GROUP BY platform ORDER BY c DESC")]
     conn.close()
     card_items = []
     for it in items:
