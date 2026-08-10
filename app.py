@@ -25,7 +25,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
-<title>媒体宝库</title>
+<title>拾光集</title>
 <style>
 :root{--accent:#5b6ef5;--bg:#f0f0f5;--card:#fff;--text:#1a1a1a;--sub:#888;--border:#ececf0}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -72,7 +72,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 </head>
 <body>
 <div class="topbar">
-  <h1>媒体宝库 <a href="/stats" style="font-size:13px;color:#eef;text-decoration:none;margin-left:8px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">📊 统计</a> <a href="/?mode=manage" style="font-size:13px;color:#eef;text-decoration:none;margin-left:6px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">🗑️ 管理</a></h1>
+  <h1>拾光集 <a href="/stats" style="font-size:13px;color:#eef;text-decoration:none;margin-left:8px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">📊 统计</a> <a href="/?mode=manage" style="font-size:13px;color:#eef;text-decoration:none;margin-left:6px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">🗑️ 管理</a></h1>
   <form class="search-row" method="get">
     <input type="text" name="q" placeholder="搜索标题/作者/内容…" value="{{ q }}">
   </form>
@@ -149,7 +149,7 @@ DETAIL_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{ it['title'] or '详情' }} - 媒体宝库</title>
+<title>{{ it['title'] or '详情' }} - 拾光集</title>
 <style>
 :root{--accent:#5b6ef5;--bg:#f0f0f5;--card:#fff;--text:#1a1a1a;--sub:#888;--border:#ececf0}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -367,7 +367,7 @@ STATS_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>统计 - 媒体宝库</title>
+<title>统计 - 拾光集</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#222;padding:20px;max-width:760px;margin:0 auto}
@@ -388,7 +388,7 @@ h1{font-size:20px;margin-bottom:20px}
 </head>
 <body>
 <a class="back" href="/">← 返回列表</a>
-<h1>📊 媒体宝库统计</h1>
+<h1>📊 拾光集统计</h1>
 <div class="total">共 {{ total }} 条收藏</div>
 
 <div class="card">
