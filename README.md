@@ -1,4 +1,4 @@
-# 🏛️ media-vault 拾光集
+# 🏛️ 拾光集（shiguangji）
 
 自托管**内容收藏库**：把社交平台（小红书/抖音/微博/TikTok/X）的图文视频下载后自动归档，网页浏览/播放/搜索，支持作者筛选与双时间排序。
 
@@ -19,8 +19,8 @@
 ## 📦 快速部署（Docker）
 
 ```bash
-git clone https://github.com/<你的用户名>/media-vault.git
-cd media-vault
+git clone https://github.com/DevinLuke777/shiguangji.git
+cd shiguangji
 
 # 1. 准备媒体目录（可选，先建空目录也行）
 mkdir -p /path/to/your/media   # 之后按 平台/日期/标题 结构放内容
