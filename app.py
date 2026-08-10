@@ -96,15 +96,15 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 <div class="no-result">没有找到内容</div>
 {% endif %}
 
-<div class="masonry">
 {% if mode == 'manage' %}
-<form method="post" action="/delete-batch" id="batchForm" onsubmit="return confirm('确定删除选中的收藏？本地文件也会一并删除！')" style="display:contents">
+<form method="post" action="/delete-batch" id="batchForm" onsubmit="return confirm('确定删除选中的收藏？本地文件也会一并删除！')" style="width:100%;margin:0;padding:0">
 {% endif %}
+<div class="masonry" {% if mode == 'manage' %}style="padding-bottom:70px"{% endif %}>
 {% for col in columns %}
 <div class="col">
 {% for it in col %}
 {% if mode == 'manage' %}
-<div style="position:relative">
+<div style="position:relative;width:100%">
   <input type="checkbox" name="ids" value="{{ it['id'] }}" style="position:absolute;top:8px;right:8px;z-index:5;width:20px;height:20px;accent-color:#e74c3c">
 {% endif %}
 <a class="card" href="/item/{{ it['id'] }}">
@@ -130,7 +130,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 </div>
 {% endfor %}
 {% if mode == 'manage' %}
-<div style="position:sticky;bottom:0;background:var(--card);padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;z-index:50">
+<div style="position:fixed;bottom:0;left:0;right:0;background:var(--card);padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;z-index:50;box-shadow:0 -2px 8px rgba(0,0,0,.08)">
   <label style="font-size:13px;color:var(--sub);display:flex;align-items:center;gap:4px"><input type="checkbox" id="selAll" style="width:16px;height:16px"> 全选</label>
   <button type="submit" style="background:#e74c3c;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;cursor:pointer">删除选中</button>
   <a href="/" style="font-size:13px;color:var(--sub);text-decoration:none">退出管理</a>
