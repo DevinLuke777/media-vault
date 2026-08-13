@@ -4,7 +4,7 @@ import os, sqlite3, subprocess
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE, "media_library.db")
-MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "/vol1/1000/Downloads/媒体宝库")
+MEDIA_ROOT = "/vol1/1000/Downloads/拾光集"
 VIDEO_EXT = (".mp4", ".mov", ".mkv", ".webm")
 IMAGE_EXT = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 

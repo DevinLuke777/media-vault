@@ -10,7 +10,7 @@ import argparse, json, os, re, sqlite3, sys, urllib.request, urllib.parse
 from datetime import datetime
 
 DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "media_library.db"))
-MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "/vol1/1000/Downloads/媒体宝库")
+MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "/vol1/1000/Downloads/拾光集")
 
 UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148 Safari/604.1"
 
