@@ -14,9 +14,9 @@ import argparse, json, os, re, subprocess, sys, time, urllib.request, urllib.par
 MEDIA = os.environ.get("MEDIA_ROOT", os.path.join(os.path.dirname(os.path.abspath(__file__)), "拾光集"))
 QUEUE = os.environ.get("QUEUE_FILE", os.path.join(MEDIA, "_queue.json"))
 LOCK = os.path.join(MEDIA, "_queue.lock")
-VALT = os.path.dirname(os.path.abspath(__file__))   # ingest.py 同目录
+VALT = os.environ.get("MEDIA_VAULT_DIR", "/vol1/1000/Docker/media-vault")  # ingest.py 所在(运行实例)
 INGEST = os.path.join(VALT, "ingest.py")
-PY = os.environ.get("PYTHON_BIN", "python3")
+PY = os.environ.get("PYTHON_BIN", os.environ.get("PYTHON", "python3"))
 XHS_VENV = os.environ.get("XHS_VENV", "python3")    # XHS-Downloader 的 venv python
 
 UA_I = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
