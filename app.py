@@ -4,7 +4,8 @@ media-vault Web 展示应用 v4 — 全部重写
 列表页：瀑布流卡片（缩略图 + 标题 + 作者/日期同一行）
 详情页：标题 + 作者信息条 + 正文 + 视频播放 + 图片网格(lightbox)
 """
-import os, re, sqlite3
+import os, re, sqlite3, json, time
+from datetime import datetime
 from flask import Flask, render_template_string, request, abort, url_for, Response, redirect
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -17,6 +18,75 @@ VIDEO_EXT = (".mp4", ".mov", ".mkv", ".webm")
 IMAGE_EXT = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
 _avatar_cache = {}
+
+# ─── 粘贴链接自动入库队列 ──────────────────────────────
+QUEUE_FILE = os.path.join(MEDIA_ROOT, "_queue.json")
+
+def load_queue():
+    try:
+        with open(QUEUE_FILE, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, list) else []
+    except Exception:
+        return []
+
+def save_queue(q):
+    tmp = QUEUE_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(q, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, QUEUE_FILE)
+
+@app.route("/add", methods=["POST"])
+def add_link():
+    raw = request.form.get("links", "").strip()
+    links = [l.strip() for l in re.split(r"[\s,]+", raw) if l.strip().startswith("http")]
+    if not links:
+        return redirect(url_for("index", msg="no_link"))
+    q = load_queue()
+    added = 0
+    for link in links:
+        # 去重：已在队列则不重复加
+        if any(it.get("url") == link for it in q):
+            continue
+        q.append({"id": int(time.time() * 1000) % 1000000,
+                  "url": link, "status": "pending", "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                  "message": ""})
+        added += 1
+    if added:
+        save_queue(q)
+    return redirect(url_for("index", msg="added" if added else "dup"))
+
+@app.route("/queue")
+def queue_status():
+    q = load_queue()
+    try:
+        conn = db()
+        total = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+        conn.close()
+    except Exception:
+        total = 0
+    html = f"""<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
+<title>队列 - 拾光集</title><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:system-ui;background:#f5f6fa;padding:20px;max-width:640px;margin:0 auto">
+<h2>📥 自动入库队列</h2><p style="color:#888;font-size:14px">收藏总数: {total} · 队列项: {len(q)}</p>
+<table style="width:100%;border-collapse:collapse;font-size:14px">
+<tr style="background:#eee"><th style="text-align:left;padding:8px">平台</th><th>状态</th><th style="text-align:left">标题/链接</th></tr>
+"""
+    for it in q[:30]:
+        status = it.get("status", "pending")
+        emoji = {"pending": "⏳", "processing": "⚙️", "done": "✅", "failed": "❌"}.get(status, "⏳")
+        color = {"pending": "#999", "processing": "#5b6ef5", "done": "#2f9e5f", "failed": "#e5484d"}.get(status, "#999")
+        plat = "抖音" if "douyin" in it["url"] or "iesdouyin" in it["url"] else ("小红书" if "xhslink" in it["url"] or "xiaohongshu" in it["url"] else "其他")
+        title = it.get("title") or ""
+        if title:
+            disp = f"{title}<br><span style='font-size:12px;color:#bbb'>{it['url'][:60]}</span>"
+        else:
+            disp = it["url"][:70]
+        msg = f"<br><span style='font-size:12px;color:{color}'>{it.get('message','')}</span>" if it.get("message") else ""
+        html += f"<tr style='border-bottom:1px solid #eee'><td>{plat}</td><td style='color:{color}'>{emoji} {status}</td><td>{disp}{msg}</td></tr>"
+    html += "</table><p style='margin-top:20px'><a href='/'>← 返回收藏</a></p></body></html>"
+    return html
 
 # ─── 列表页 ──────────────────────────────────────────
 INDEX_HTML = r"""<!DOCTYPE html>
@@ -72,7 +142,16 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 </head>
 <body>
 <div class="topbar">
-  <h1>拾光集 <a href="/stats" style="font-size:13px;color:#eef;text-decoration:none;margin-left:8px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">📊 统计</a> <a href="/?mode=manage" style="font-size:13px;color:#eef;text-decoration:none;margin-left:6px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">🗑️ 管理</a></h1>
+  <h1>拾光集 <a href="/stats" style="font-size:13px;color:#eef;text-decoration:none;margin-left:8px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">📊 统计</a> <a href="/?mode=manage" style="font-size:13px;color:#eef;text-decoration:none;margin-left:6px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">🗑️ 管理</a> <a href="/queue" style="font-size:13px;color:#eef;text-decoration:none;margin-left:6px;background:rgba(91,110,245,.5);padding:4px 10px;border-radius:20px">📥 队列</a></h1>
+  <form method="post" action="/add" class="search-row" style="margin-bottom:8px">
+    <input type="text" name="links" placeholder="粘贴抖音/小红书链接，自动入库（多条用空格或逗号分隔）" {% if request.args.get('msg')=='added' %}style="border-color:#2f9e5f"{% endif %}>
+    <button type="submit" style="padding:8px 16px;border:none;border-radius:20px;background:#5b6ef5;color:#fff;font-size:14px;white-space:nowrap">入库</button>
+  </form>
+  {% if request.args.get('msg') == 'added' %}
+  <div style="color:#2f9e5f;font-size:12px;margin:-4px 2px 8px">✅ 已加入队列，处理中请稍候到「📥 队列」查看</div>
+  {% elif request.args.get('msg') == 'no_link' %}
+  <div style="color:#e5484d;font-size:12px;margin:-4px 2px 8px">没有识别到有效链接</div>
+  {% endif %}
   <form class="search-row" method="get">
     <input type="text" name="q" placeholder="搜索标题/作者/内容…" value="{{ q }}">
   </form>
