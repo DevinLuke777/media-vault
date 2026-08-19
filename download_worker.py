@@ -67,8 +67,8 @@ def gen_thumb(d, title, is_video):
     try:
         src = os.path.join(d, f"{title}.mp4") if is_video else os.path.join(d, f"{title}_1.png")
         if not os.path.isfile(src):
-            # 图片多命名时兜底
-            cands = sorted(glob.glob(os.path.join(d, "*.png")) + glob.glob(os.path.join(d, f"{title}_1.jpg")))
+            # 图文可能用 jpg; 图片多命名时兜底
+            cands = sorted(glob.glob(os.path.join(d, "*.png")) + glob.glob(os.path.join(d, "*.jpg")) + glob.glob(os.path.join(d, f"{title}_1.jpeg")))
             if not cands:
                 return
             src = cands[0]
@@ -146,13 +146,19 @@ def download_douyin(url):
                 found = old_untitled
     if not found:
         raise RuntimeError("等待抖音落盘超时")
-    # 防护3: 归档到 抖音/日期/标题/，untitled 认领后改名切断复用
-    target = os.path.join(base, title)
-    if os.path.isdir(target):
-        # 标题目录已存在(可能之前入库过) → 清掉避免混合
-        shutil.rmtree(target, ignore_errors=True)
+    # 防护3: 归档到 抖音/日期/标题/。
+    # 关键修复: 标题目录若已存在(多条不同视频可能同名, 如空标题都用作者名),
+    #   **绝不删除**——追加唯一后缀(_2/_3)并存，避免覆盖/删掉别人的内容
+    base_dir = "".join(c for c in title if c not in ':：/\\*?"<>|')[:60] or f"抖音_{int(time.time())}"
+    target = os.path.join(base, base_dir)
+    suffix = 2
+    while os.path.isdir(target):
+        target = os.path.join(base, f"{base_dir}_{suffix}")
+        suffix += 1
     os.makedirs(target, exist_ok=True)
-    # 处理文件: 视频→标题.mp4; 图片→标题_N; 删audio
+    # ★核心修复: final_dir = 实际创建的目录名(可能带 _2/_3 后缀)。
+    #   rel(入库path) 和 文件名前缀 都必须用它，与下载目录严格一致
+    final_dir = os.path.basename(target)
     moved_video = False
     for f in list(os.listdir(found)):
         if f.startswith("."):
@@ -160,7 +166,7 @@ def download_douyin(url):
         src = os.path.join(found, f)
         low = f.lower()
         if low.endswith((".mp4", ".mov", ".webm", ".mkv")):
-            dst = os.path.join(target, f"{title}.mp4")
+            dst = os.path.join(target, f"{final_dir}.mp4")
             if os.path.exists(dst):
                 os.remove(dst)
             shutil.move(src, dst)
@@ -168,11 +174,10 @@ def download_douyin(url):
         elif low.endswith((".jpg", ".jpeg", ".png")):
             nm = re.match(r"image_0*(\d+)\.(jpg|jpeg|png)", low)
             if nm:
-                dst = os.path.join(target, f"{title}_{nm.group(1)}.{nm.group(2)}")
+                dst = os.path.join(target, f"{final_dir}_{nm.group(1)}.{nm.group(2)}")
             else:
-                # 无序号图片: 用当前图片数兜底命名
                 img_count = sum(1 for x in os.listdir(target) if x.lower().endswith((".jpg", ".jpeg", ".png")))
-                dst = os.path.join(target, f"{title}_{img_count+1}.{low.split('.')[-1]}")
+                dst = os.path.join(target, f"{final_dir}_{img_count+1}.{low.split('.')[-1]}")
             if os.path.exists(dst):
                 os.remove(dst)
             shutil.move(src, dst)
@@ -186,11 +191,11 @@ def download_douyin(url):
             os.rmdir(found)
         except Exception:
             pass
-    rel = os.path.join("抖音", today(), title)
+    rel = os.path.join("抖音", today(), final_dir)
     d = os.path.join(MEDIA, rel)
     # 判断图文: 有图片且无视频(true video 帖会 moved_video)
     is_图文 = (not moved_video) and any(f.lower().endswith((".jpg", ".jpeg", ".png")) for f in os.listdir(d))
-    gen_thumb(d, title, is_video=not is_图文)
+    gen_thumb(d, final_dir, is_video=not is_图文)
     return rel, title, "抖音", author
 
 
@@ -408,14 +413,15 @@ def drain():
     if not q:
         return
     changed = False
+    # 只把第一个 pending 标记为 processing(其余保持 pending, 下次周期再处理)
     for item in q:
-        if item.get("status") not in ("pending", "processing"):
-            continue
-        item["status"] = "processing"
-        changed = True
+        if item.get("status") == "pending":
+            item["status"] = "processing"
+            changed = True
+            break
     if changed:
         save_queue(q)
-    # 处理一个, 立即保存, 避免长阻塞
+    # 处理第一个 processing, 立即保存
     for item in q:
         if item.get("status") == "processing":
             process_one(item)
