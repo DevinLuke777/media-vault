@@ -356,6 +356,13 @@ def drain():
     q = load_queue()
     if not q:
         return
+    # 先清理已结束的条目：done(成功已入库)清掉；failed(失败)保留供用户看原因
+    kept = [it for it in q if it.get("status") in ("pending", "processing", "failed")]
+    if len(kept) != len(q):
+        q = kept
+        save_queue(q)
+    if not q:
+        return
     changed = False
     for item in q:
         if item.get("status") not in ("pending", "processing"):
@@ -368,6 +375,9 @@ def drain():
     for item in q:
         if item.get("status") == "processing":
             process_one(item)
+            # 成功的立即从队列移除(已入库)；失败的保留(原因让用户看)
+            if item.get("status") == "done":
+                q = [it for it in q if it.get("id") != item.get("id")]
             save_queue(q)
             break  # 每次调用只处理一个，防超时; 下个周期处理下一个
 
