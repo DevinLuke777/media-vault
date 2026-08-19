@@ -310,6 +310,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
   <a class="back" href="/">← 返回</a>
   <div class="card-box">
     <div class="title">{{ it['title'] or '无标题' }}</div>
+    <div style="padding:4px 16px 0;font-size:11px;color:var(--sub)">ID: <code style="background:#f0f0f5;padding:1px 6px;border-radius:4px;color:var(--sub)">{{ it['id'] }}</code></div>
     <div class="author-bar">
       <img class="av" src="/avatar/{{ it['id'] }}" onerror="this.classList.add('hide')">
       <a class="name" href="/?author={{ it['author_name']|urlencode }}">{{ it['author_name'] or '未知作者' }}</a>
@@ -571,7 +572,7 @@ def avatar(item_id):
             referer = "https://www.tiktok.com/"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148 Safari/604.1", "Referer": referer})
         data = urllib.request.urlopen(req, timeout=10).read()
-        if len(data) > 500000:
+        if len(data) > 2000000:
             abort(404)
         _avatar_cache[url] = data
         return Response(data, content_type="image/jpeg")
@@ -579,7 +580,7 @@ def avatar(item_id):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             data = urllib.request.urlopen(req, timeout=10).read()
-            if len(data) > 500000:
+            if len(data) > 2000000:
                 abort(404)
             _avatar_cache[url] = data
             return Response(data, content_type="image/jpeg")
