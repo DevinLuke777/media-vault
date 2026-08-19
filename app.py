@@ -56,9 +56,23 @@ def add_link():
         save_queue(q)
     return redirect(url_for("index", msg="added" if added else "dup"))
 
+@app.route("/queue-clear-failed", methods=["POST"])
+def queue_clear_failed():
+    """一键删除所有 failed 队列条目"""
+    q = [it for it in load_queue() if it.get("status") != "failed"]
+    save_queue(q)
+    return redirect(url_for("queue_status"))
+
+@app.route("/queue-clear-all", methods=["POST"])
+def queue_clear_all():
+    """一键清空整个队列"""
+    save_queue([])
+    return redirect(url_for("queue_status"))
+
 @app.route("/queue")
 def queue_status():
     q = load_queue()
+    fail_count = sum(1 for it in q if it.get("status") == "failed")
     try:
         conn = db()
         total = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
@@ -69,10 +83,19 @@ def queue_status():
 <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
 <title>队列 - 拾光集</title><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:system-ui;background:#f5f6fa;padding:20px;max-width:640px;margin:0 auto">
-<h2>📥 自动入库队列</h2><p style="color:#888;font-size:14px">收藏总数: {total} · 队列项: {len(q)}</p>
+<div style="display:flex;justify-content:space-between;align-items:center">
+<h2>📥 自动入库队列</h2>
+<div>
+<form method="post" action="/queue-clear-failed" style="display:inline" onsubmit="return confirm('清除所有失败的条目？')"><button style="background:#e5484d;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px">🗑️ 清空失败({fail_count})</button></form>
+<form method="post" action="/queue-clear-all" style="display:inline" onsubmit="return confirm('清空整个队列？(含进行中)')"><button style="background:#888;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px">✖️ 清空全部</button></form>
+</div>
+</div>
+<p style="color:#888;font-size:14px">收藏总数: {total} · 队列项: {len(q)} · 失败自动保留1天后清除</p>
 <table style="width:100%;border-collapse:collapse;font-size:14px">
 <tr style="background:#eee"><th style="text-align:left;padding:8px">平台</th><th>状态</th><th style="text-align:left">标题/链接</th></tr>
 """
+    if not q:
+        html += "<tr><td colspan='3' style='text-align:center;color:#bbb;padding:20px'>队列是空的</td></tr>"
     for it in q[:30]:
         status = it.get("status", "pending")
         emoji = {"pending": "⏳", "processing": "⚙️", "done": "✅", "failed": "❌"}.get(status, "⏳")
