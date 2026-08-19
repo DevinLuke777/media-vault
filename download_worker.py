@@ -81,8 +81,11 @@ def gen_thumb(d, title, is_video):
 
 # ── 抖音 ──────────────────────────────────────────────
 def download_douyin(url):
-    """轻解析解析+下载，返回 (relative_path, title, platform)。
-    ⚠️ 用时间戳精确匹配自己那条的落盘目录，避免并发时抓到别的 untitled 串号"""
+    """轻解析解析+下载，返回 (relative_path, title, platform, author)。
+    三重串号防护:
+      1) 调轻解析前清掉抖音目录下已存在的旧 untitled 残留(轻解析复用同名 untitled 是串号根源)
+      2) 用时间戳快照只认"本次触发后新出现"的落盘目录
+      3) 认领后立即把 untitled 改名到标题目录(切断下次复用污染)"""
     # 展开短链
     real = url
     m = re.search(r"v\.douyin\.com/([A-Za-z0-9_-]+)/", url)
@@ -97,6 +100,17 @@ def download_douyin(url):
                 real = urllib.request.urlopen(urllib.request.Request(short.group(0), headers={"User-Agent": UA_I}), timeout=15).geturl()
             except Exception:
                 real = url
+    base = os.path.join(MEDIA, "抖音", today())
+    os.makedirs(base, exist_ok=True)
+    # 防护1: 清掉已存在的旧 untitled 残留（防止轻解析复用同名目录污染本次下载）
+    old_untitled = os.path.join(base, "untitled")
+    if os.path.isdir(old_untitled):
+        try:
+            shutil.rmtree(old_untitled)
+        except Exception:
+            pass
+    # 防护2: 调轻解析前记录目录快照
+    pre_names = set(os.listdir(base))
     # 调轻解析
     enc = urllib.parse.quote(real, safe="")
     api = f"http://localhost:8086/video/share/url/parse?url={enc}"
@@ -106,12 +120,7 @@ def download_douyin(url):
     data = d.get("data") or {}
     author = (data.get("author") or {}).get("name") or "未知作者"
     title = clean_title(data.get("title")) or author
-    base = os.path.join(MEDIA, "抖音", today())
-    # 记录请求前的已存在顶层目录(快照)，之后只认"新出现的"落盘目录
-    os.makedirs(base, exist_ok=True)
-    pre_names = set(os.listdir(base))
-    # 调轻解析下载(触发 auto_save 落盘)
-    # 等落盘: 只匹配 base 下"新出现"的目录(不在 pre_names 快照里)
+    # 等落盘: 只认"本次新出现"的目录（快照外的）
     found = None
     waited = 0
     while waited < 90:
@@ -130,45 +139,48 @@ def download_douyin(url):
         time.sleep(5)
         waited += 5
     if not found:
-        # 兜底：没等到的用 untitled/（但要确认不是旧的）
-        for name in os.listdir(base):
-            p = os.path.join(base, name)
-            if os.path.isdir(p) and name == "untitled" and p not in [os.path.join(base, x) for x in pre_names]:
-                files = [f for f in os.listdir(p)]
-                if any(f.lower().endswith((".mp4", ".mov")) for f in files):
-                    found = p
-                    break
+        # 兜底：新的 untitled（本次新建的）
+        if os.path.isdir(old_untitled):
+            files = [f for f in os.listdir(old_untitled)]
+            if any(f.lower().endswith((".mp4", ".mov", ".jpg", ".jpeg", ".png")) for f in files):
+                found = old_untitled
     if not found:
         raise RuntimeError("等待抖音落盘超时")
-    # 归档: 统一到 抖音/日期/标题/标题.mp4
+    # 防护3: 归档到 抖音/日期/标题/，untitled 认领后改名切断复用
     target = os.path.join(base, title)
+    if os.path.isdir(target):
+        # 标题目录已存在(可能之前入库过) → 清掉避免混合
+        shutil.rmtree(target, ignore_errors=True)
     os.makedirs(target, exist_ok=True)
-    # 移动文件并重命名视频为 标题.mp4
+    # 处理文件: 视频→标题.mp4; 图片→标题_N; 删audio
+    moved_video = False
     for f in list(os.listdir(found)):
         if f.startswith("."):
             continue
         src = os.path.join(found, f)
-        if f.lower().endswith((".mp4", ".mov", ".webm", ".mkv")):
-            # 视频统一命名 标题.mp4（并发时旧目录可能残留同名，覆盖处理）
+        low = f.lower()
+        if low.endswith((".mp4", ".mov", ".webm", ".mkv")):
             dst = os.path.join(target, f"{title}.mp4")
             if os.path.exists(dst):
                 os.remove(dst)
             shutil.move(src, dst)
-        elif f.lower().endswith((".jpg", ".jpeg", ".png")):
-            # 图文图片保持原名或按序号
-            nm = re.match(r"image_0*(\d+)\.(jpg|jpeg|png)", f.lower())
+            moved_video = True
+        elif low.endswith((".jpg", ".jpeg", ".png")):
+            nm = re.match(r"image_0*(\d+)\.(jpg|jpeg|png)", low)
             if nm:
                 dst = os.path.join(target, f"{title}_{nm.group(1)}.{nm.group(2)}")
-                if os.path.exists(dst):
-                    os.remove(dst)
-                shutil.move(src, dst)
             else:
-                shutil.move(src, os.path.join(target, f))
-        elif f.endswith(".mp3"):
-            os.remove(src)  # 图文音频不需要
+                # 无序号图片: 用当前图片数兜底命名
+                img_count = sum(1 for x in os.listdir(target) if x.lower().endswith((".jpg", ".jpeg", ".png")))
+                dst = os.path.join(target, f"{title}_{img_count+1}.{low.split('.')[-1]}")
+            if os.path.exists(dst):
+                os.remove(dst)
+            shutil.move(src, dst)
+        elif low.endswith(".mp3"):
+            os.remove(src)
         else:
             shutil.move(src, os.path.join(target, f))
-    # 清掉空的源目录
+    # 清空源目录
     if os.path.isdir(found) and os.listdir(found) == []:
         try:
             os.rmdir(found)
@@ -176,9 +188,8 @@ def download_douyin(url):
             pass
     rel = os.path.join("抖音", today(), title)
     d = os.path.join(MEDIA, rel)
-    # 判断图文：目录里有图片且无视频
-    is_图文 = any(f.lower().endswith((".jpg", ".jpeg", ".png")) for f in os.listdir(d)) and \
-             not any(f.lower().endswith((".mp4", ".mov", ".webm")) for f in os.listdir(d))
+    # 判断图文: 有图片且无视频(true video 帖会 moved_video)
+    is_图文 = (not moved_video) and any(f.lower().endswith((".jpg", ".jpeg", ".png")) for f in os.listdir(d))
     gen_thumb(d, title, is_video=not is_图文)
     return rel, title, "抖音", author
 
