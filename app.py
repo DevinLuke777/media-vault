@@ -142,6 +142,16 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .masonry{display:flex;gap:10px;padding:0 10px 20px;align-items:flex-start}
 .col{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
 
+/* 平板/桌面：封面限高 + 列数随宽度（列数由 JS 重排，见底部脚本） */
+@media(min-width:768px){
+  .cover img{max-height:420px}
+  .cover .empty{height:160px}
+}
+@media(min-width:1200px){
+  .cover img{max-height:360px}
+  .cover .empty{height:150px}
+}
+
 /* 卡片 */
 .card{break-inside:avoid;margin-bottom:10px;background:var(--card);border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);display:block;text-decoration:none;color:inherit;transition:box-shadow .15s}
 .card:active{box-shadow:0 0 0 2px var(--accent)}
@@ -206,10 +216,10 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 <div class="col">
 {% for it in col %}
 {% if mode == 'manage' %}
-<div style="position:relative;width:100%">
+<div style="position:relative;width:100%" data-idx="{{ it['idx'] }}">
   <input type="checkbox" name="ids" value="{{ it['id'] }}" style="position:absolute;top:8px;right:8px;z-index:5;width:20px;height:20px;accent-color:#e74c3c">
 {% endif %}
-<a class="card" href="/item/{{ it['id'] }}">
+<a class="card" href="/item/{{ it['id'] }}" {% if mode != 'manage' %}data-idx="{{ it['idx'] }}"{% endif %}>
   <div class="cover">
     {% if it['cover'] %}
     <img src="{{ url_for('media', relpath=it['cover']) }}" loading="lazy">
@@ -241,6 +251,28 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 <script>document.getElementById('selAll').onchange=function(){document.querySelectorAll('input[name=ids]').forEach(function(c){c.checked=this.checked},this)}</script>
 {% endif %}
 </div>
+<script>
+/* 响应式列数：按窗口宽度重排卡片（手机2列 / 平板3列 / 大屏4列），保持奇偶交替顺序 */
+(function(){
+  function relayout(){
+    var wrap=document.querySelector('.masonry'); if(!wrap) return;
+    var w=window.innerWidth;
+    var n = w>=1200 ? 4 : (w>=768 ? 3 : 2);
+    if(wrap.dataset.cols===String(n)) return;
+    wrap.dataset.cols=n;
+    var cards=[].slice.call(wrap.querySelectorAll(':scope > .col > [data-idx]'));
+    if(!cards.length) return;
+    cards.sort(function(a,b){return (+a.getAttribute('data-idx'))-(+b.getAttribute('data-idx'));});
+    var cols=[]; for(var i=0;i<n;i++){var d=document.createElement('div');d.className='col';cols.push(d);}
+    cards.forEach(function(c,k){cols[k%n].appendChild(c);});
+    wrap.innerHTML=''; cols.forEach(function(c){wrap.appendChild(c);});
+  }
+  var t;
+  window.addEventListener('resize',function(){clearTimeout(t);t=setTimeout(relayout,150);});
+  if(document.readyState!=='loading'){relayout();}
+  else{document.addEventListener('DOMContentLoaded',relayout);}
+})();
+</script>
 </body>
 </html>"""
 
@@ -418,7 +450,7 @@ def index():
     platforms = [r["platform"] for r in conn.execute("SELECT platform, COUNT(*) c FROM items GROUP BY platform ORDER BY c DESC")]
     conn.close()
     card_items = []
-    for it in items:
+    for idx, it in enumerate(items):
         files = list_files(it["local_path"])
         cover = None
         is_video = False
@@ -431,7 +463,7 @@ def index():
                 cover = f
             if low.endswith(VIDEO_EXT):
                 is_video = True
-        card_items.append({**dict(it), "cover": cover, "is_video": is_video})
+        card_items.append({**dict(it), "cover": cover, "is_video": is_video, "idx": idx})
 
     base_args = {}
     if q: base_args["q"] = q
