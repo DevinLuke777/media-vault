@@ -40,9 +40,9 @@ Q_HEAD = """<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
 <title>队列 - 拾光集</title><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-:root{--accent:#0071e3;--bg:#f7f7f8;--card:#fff;--text:#18181b;--sub:#71717a;--border:#e8e8ec;--fill:#f0f0f4;--fill2:#a3a3ad;--shadow:0 1px 4px rgba(0,0,0,.06);--danger:#6e6e73}
+:root{--accent:#0071e3;--bg:#f7f7f8;--card:#fff;--text:#18181b;--sub:#71717a;--border:#e8e8ec;--fill:#f0f0f4;--fill2:#a3a3ad;--shadow:0 1px 4px rgba(0,0,0,.06);--danger:#6e6e73;--bar-bg:rgba(255,255,255,.72);--bar-line:rgba(0,0,0,.06)}
 @media (prefers-color-scheme:dark){
-:root{color-scheme:dark;--accent:#0a84ff;--bg:#050507;--card:#1c1c1e;--text:#f5f5f7;--sub:#86868b;--border:#2c2c2e;--fill:#2c2c2e;--fill2:#636366;--shadow:0 1px 4px rgba(0,0,0,.45);--danger:#48484a}
+:root{color-scheme:dark;--accent:#0a84ff;--bg:#050507;--card:#1c1c1e;--text:#f5f5f7;--sub:#86868b;--border:#2c2c2e;--fill:#2c2c2e;--fill2:#636366;--shadow:0 1px 4px rgba(0,0,0,.45);--danger:#48484a;--bar-bg:rgba(10,10,12,.72);--bar-line:rgba(255,255,255,.08)}
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:640px;margin:0 auto}
@@ -60,6 +60,11 @@ td.empty{text-align:center;color:var(--fill2);padding:26px;border-bottom:none}
 .url{font-size:12px;color:var(--fill2);word-break:break-all}
 .back-line{margin-top:18px}
 .back-line a{color:var(--accent);text-decoration:none;font-size:14px}
+.tabbar{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:90;display:flex;background:var(--bar-bg);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid var(--bar-line);border-radius:26px;box-shadow:var(--shadow-lg);padding:5px;gap:2px}
+.tabbar .titem{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--sub);text-decoration:none;padding:6px 15px;border-radius:20px;transition:background .15s ease,color .15s ease}
+.tabbar .titem .tic{font-size:20px;line-height:1}
+.tabbar .titem.on{color:#fff;background:var(--accent)}
+body{padding-bottom:88px}
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
 </style></head>
 <body>
@@ -135,7 +140,17 @@ def queue_status():
             disp = it["url"][:70]
         msg = f"<br><span style='font-size:12px;color:{color}'>{it.get('message','')}</span>" if it.get("message") else ""
         html += f"<tr><td>{plat}</td><td style='color:{color};text-align:center'>{emoji} {status}</td><td>{disp}{msg}</td></tr>"
-    html += "</table></div><p class='back-line'><a href='/'>← 返回收藏</a></p></body></html>"
+    html += """</table></div>
+<nav class="tabbar">
+  <a href="/" class="titem"><span class="tic">🏠</span>浏览</a>
+  <a href="/queue" class="titem on"><span class="tic">📥</span>队列</a>
+  <a href="/stats" class="titem"><span class="tic">📊</span>统计</a>
+  <a href="/?mode=manage" class="titem"><span class="tic">🗑️</span>管理</a>
+</nav>
+<script>/* 还有处理中的条目时每 15 秒自动刷新进度 */
+setInterval(function(){var t=document.body.textContent;if(t.indexOf('⏳')>=0||t.indexOf('⚙️')>=0)location.reload();},15000);
+</script>
+</body></html>"""
     return html
 
 # ─── 列表页 ──────────────────────────────────────────
@@ -160,6 +175,15 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .topbar.is-scrolled{box-shadow:var(--shadow-lg)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.topbar{background:var(--card)}}
 .topbar h1{font-size:20px;font-weight:750;letter-spacing:-.025em;margin-bottom:10px}
+.hrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.hrow h1{margin-bottom:0}
+.brand{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--text)}
+.logo{width:30px;height:30px;border-radius:7px;object-fit:cover;box-shadow:0 1px 3px rgba(0,0,0,.18);flex-shrink:0;display:block}
+.brand-name{font-size:20px;font-weight:750;letter-spacing:-.025em}
+.sbtn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--border);border-radius:50%;background:var(--fill);font-size:15px;cursor:pointer;transition:transform .1s ease;flex-shrink:0}
+.sbtn:active{transform:scale(.92)}
+.scancel{font-size:14px;color:var(--accent);text-decoration:none;white-space:nowrap;padding:6px 10px}
+.search-bar{margin-bottom:8px;display:flex}
 .search-row{display:flex;gap:8px}
 .search-row input{flex:1;padding:9px 14px;border:1px solid var(--border);border-radius:20px;font-size:14px;outline:none;background:var(--fill);color:var(--text);transition:border-color .15s ease,box-shadow .15s ease}
 .search-row input::placeholder{color:var(--fill2)}
@@ -169,6 +193,19 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .chip:active{transform:scale(.96)}
 .chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .chip select{border:none;background:transparent;font-size:13px;outline:none;color:var(--sub)}
+
+/* 排序分段控件（iOS 风格） */
+.seg{display:flex;border:1px solid var(--border);border-radius:20px;overflow:hidden;background:var(--card);flex-shrink:0}
+.seg-btn{padding:5px 13px;font-size:13px;color:var(--sub);text-decoration:none;white-space:nowrap;transition:background .15s ease,color .15s ease}
+.seg-btn.on{background:var(--accent);color:#fff}
+.seg .seg-btn + .seg-btn{border-left:1px solid var(--border)}
+
+/* 底部悬浮导航（全尺寸显示，iPad/桌面也用；管理模式隐藏） */
+.tabbar{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:90;display:flex;background:var(--bar-bg);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid var(--bar-line);border-radius:26px;box-shadow:var(--shadow-lg);padding:5px;gap:2px}
+.tabbar .titem{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--sub);text-decoration:none;padding:6px 15px;border-radius:20px;transition:background .15s ease,color .15s ease}
+.tabbar .titem .tic{font-size:20px;line-height:1}
+.tabbar .titem.on{color:#fff;background:var(--accent)}
+.masonry{padding-bottom:88px}
 
 /* 统计 */
 .stat-bar{padding:8px 16px;font-size:12px;color:var(--sub)}
@@ -217,7 +254,13 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 </head>
 <body>
 <div class="topbar">
-  <h1>拾光集 <a href="/stats" style="font-size:13px;color:var(--sub);text-decoration:none;margin-left:8px;background:var(--fill);padding:4px 10px;border-radius:20px">📊 统计</a> <a href="/?mode=manage" style="font-size:13px;color:var(--sub);text-decoration:none;margin-left:6px;background:var(--fill);padding:4px 10px;border-radius:20px">🗑️ 管理</a> <a href="/queue" style="font-size:13px;color:#fff;text-decoration:none;margin-left:6px;background:var(--accent);padding:4px 10px;border-radius:20px">📥 队列</a></h1>
+  <div class="hrow">
+  <a class="brand" href="/" title="回首页">
+    <img class="logo" src="/static/logo.jpg" alt="拾光集">
+    <span class="brand-name">拾光集</span>
+  </a>
+  <button type="button" class="sbtn" id="sOpen" onclick="openSearch()" {% if q %}style="display:none"{% endif %} aria-label="搜索">🔍</button>
+</div>
   <form method="post" action="/add" class="search-row" style="margin-bottom:8px">
     <input type="text" name="links" placeholder="粘贴抖音/小红书链接，自动入库（多条用空格或逗号分隔）" {% if request.args.get('msg')=='added' %}style="border-color:#30d158"{% endif %}>
     <button type="submit" style="padding:8px 16px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:14px;white-space:nowrap;transition:transform .1s ease">入库</button>
@@ -225,21 +268,22 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
   {% if request.args.get('msg') == 'added' %}
   <div style="color:#30d158;font-size:12px;margin:-4px 2px 8px">✅ 已加入队列，处理中请稍候到「📥 队列」查看</div>
   {% elif request.args.get('msg') == 'no_link' %}
-  <div style="color:#ff453a;font-size:12px;margin:-4px 2px 8px">没有识别到有效链接</div>
+  <div style="color:#ff9f0a;font-size:12px;margin:-4px 2px 8px">没有识别到有效链接</div>
   {% endif %}
-  <form class="search-row" method="get">
-    <input type="text" name="q" placeholder="搜索标题/作者/内容…" value="{{ q }}">
+  <div class="search-bar" id="sBox" style="display:{% if q %}flex{% else %}none{% endif %}">
+  <form class="search-row" method="get" style="flex:1;min-width:0">
+    <input type="search" name="q" id="sInput" placeholder="搜索标题/作者/内容…" value="{{ q }}" style="-webkit-appearance:none;appearance:none">
+    <a class="scancel" href="/">取消</a>
   </form>
+</div>
   <div class="filter-row">
     <span class="chip {% if not platform %}active{% endif %}" onclick="location.href='{{ url_no_plat }}'">全部</span>
     {% for p in platforms %}
     <span class="chip {% if platform==p %}active{% endif %}" onclick="location.href='/?platform={{ p|urlencode }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}'">{{ '推特' if p == 'X' else p }}</span>
     {% endfor %}
-    <span class="chip" style="border:none">
-      <select onchange="location.href=this.value" style="color:var(--sub)">
-        <option value="{{ url_created }}" {% if sort=='created' %}selected{% endif %}>最新采集</option>
-        <option value="{{ url_posted }}" {% if sort=='posted' %}selected{% endif %}>最新发布</option>
-      </select>
+    <span class="seg">
+      <a class="seg-btn {% if sort=='created' %}on{% endif %}" href="{{ url_created }}">最新采集</a>
+      <a class="seg-btn {% if sort=='posted' %}on{% endif %}" href="{{ url_posted }}">最新发布</a>
     </span>
   </div>
 </div>
@@ -253,7 +297,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 {% if mode == 'manage' %}
 <form method="post" action="/delete-batch" id="batchForm" onsubmit="return confirm('确定删除选中的收藏？本地文件也会一并删除！')" style="width:100%;margin:0;padding:0">
 {% endif %}
-<div class="masonry" {% if mode == 'manage' %}style="padding-bottom:70px"{% endif %}>
+<div class="masonry" {% if mode == 'manage' %}style="padding-bottom:88px"{% endif %}>
 {% for col in columns %}
 <div class="col">
 {% for it in col %}
@@ -284,15 +328,21 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 </div>
 {% endfor %}
 {% if mode == 'manage' %}
-<div style="position:fixed;bottom:0;left:0;right:0;background:var(--card);padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;z-index:50;box-shadow:var(--shadow-lg)">
-  <label style="font-size:13px;color:var(--sub);display:flex;align-items:center;gap:4px"><input type="checkbox" id="selAll" style="width:16px;height:16px;accent-color:var(--accent)"> 全选</label>
-  <button type="submit" style="background:var(--danger);color:#fff;border:none;padding:8px 20px;border-radius:10px;font-size:13px;cursor:pointer;transition:transform .1s ease">删除选中</button>
-  <a href="/" style="font-size:13px;color:var(--sub);text-decoration:none">退出管理</a>
+</div>
+<div class="mgbar" style="position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:95;display:flex;align-items:center;background:var(--bar-bg);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid var(--bar-line);border-radius:26px;box-shadow:var(--shadow-lg);padding:5px;gap:2px">
+  <label style="font-size:13px;color:var(--sub);display:flex;align-items:center;gap:5px;padding:6px 10px;user-select:none"><input type="checkbox" id="selAll" style="width:16px;height:16px;accent-color:var(--accent)"> 全选</label>
+  <button type="submit" id="delBtn" style="background:var(--danger);color:#fff;border:none;padding:8px 18px;border-radius:18px;font-size:13px;cursor:pointer;transition:transform .1s ease;user-select:none">删除选中</button>
+  <a href="/" style="font-size:13px;color:var(--accent);text-decoration:none;padding:8px 14px;border-radius:18px;user-select:none">✕ 退出</a>
 </div>
 </form>
-<script>document.getElementById('selAll').onchange=function(){document.querySelectorAll('input[name=ids]').forEach(function(c){c.checked=this.checked},this)}</script>
-{% endif %}
+<script>
+document.getElementById('selAll').onchange=function(){var b=this.checked;document.querySelectorAll('input[name=ids]').forEach(function(c){c.checked=b});updDel()};
+function updDel(){var n=document.querySelectorAll('input[name=ids]:checked').length;var d=document.getElementById('delBtn');d.textContent=n?('删除选中('+n+')'):'删除选中'}
+document.querySelectorAll('input[name=ids]').forEach(function(c){c.addEventListener('change',updDel)});
+</script>
+{% else %}
 </div>
+{% endif %}
 <script>
 /* 响应式列数：按窗口宽度重排卡片（手机2列 / 平板3列 / 大屏4列），保持奇偶交替顺序 */
 (function(){
@@ -316,6 +366,15 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 })();
 </script>
 <script>
+/* 顶栏搜索展开：平时只有 🔍 按钮 */
+function openSearch(){
+  var b=document.getElementById('sBox'); if(!b) return;
+  b.style.display='flex';
+  var o=document.getElementById('sOpen'); if(o) o.style.display='none';
+  var i=document.getElementById('sInput'); if(i) i.focus();
+}
+</script>
+<script>
 /* 顶栏滚动边界反馈：内容滚过顶栏时加阴影（IntersectionObserver，无滚动监听） */
 (function(){
   var tb=document.querySelector('.topbar');
@@ -326,6 +385,23 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
   new IntersectionObserver(function(en){tb.classList.toggle('is-scrolled',!en[0].isIntersecting);},{threshold:0}).observe(mark);
 })();
 </script>
+{% if mode != 'manage' %}
+<nav class="tabbar">
+  <a href="/" class="titem on"><span class="tic">🏠</span>浏览</a>
+  <a href="/queue" class="titem"><span class="tic">📥</span>队列</a>
+  <a href="/stats" class="titem"><span class="tic">📊</span>统计</a>
+  <a href="/?mode=manage" class="titem"><span class="tic">🗑️</span>管理</a>
+</nav>
+<script>
+/* 下拉刷新（iOS 手势：页面在顶部时下拉 90px 触发） */
+(function(){
+  var sy=0,on=false;
+  document.addEventListener('touchstart',function(e){if(window.scrollY<=0){sy=e.touches[0].clientY;on=true;}},{passive:true});
+  document.addEventListener('touchmove',function(e){if(on&&window.scrollY<=0&&e.touches[0].clientY-sy>90){on=false;location.reload();}},{passive:true});
+  document.addEventListener('touchend',function(){on=false;},{passive:true});
+})();
+</script>
+{% endif %}
 </body>
 </html>"""
 
@@ -574,9 +650,9 @@ STATS_HTML = """<!DOCTYPE html>
 <title>统计 - 拾光集</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--accent:#0071e3;--bg:#f7f7f8;--card:#fff;--text:#18181b;--sub:#71717a;--border:#e8e8ec;--fill:#f0f0f4;--fill2:#a3a3ad;--shadow:0 1px 4px rgba(0,0,0,.06)}
+:root{--accent:#0071e3;--bg:#f7f7f8;--card:#fff;--text:#18181b;--sub:#71717a;--border:#e8e8ec;--fill:#f0f0f4;--fill2:#a3a3ad;--shadow:0 1px 4px rgba(0,0,0,.06);--bar-bg:rgba(255,255,255,.72);--bar-line:rgba(0,0,0,.06)}
 @media (prefers-color-scheme:dark){
-:root{color-scheme:dark;--accent:#0a84ff;--bg:#050507;--card:#1c1c1e;--text:#f5f5f7;--sub:#86868b;--border:#2c2c2e;--fill:#2c2c2e;--fill2:#636366;--shadow:0 1px 4px rgba(0,0,0,.45)}
+:root{color-scheme:dark;--accent:#0a84ff;--bg:#050507;--card:#1c1c1e;--text:#f5f5f7;--sub:#86868b;--border:#2c2c2e;--fill:#2c2c2e;--fill2:#636366;--shadow:0 1px 4px rgba(0,0,0,.45);--bar-bg:rgba(10,10,12,.72);--bar-line:rgba(255,255,255,.08)}
 }
 body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:760px;margin:0 auto}
 h1{font-size:20px;margin-bottom:20px;letter-spacing:-.02em}
@@ -594,6 +670,11 @@ h1{font-size:20px;margin-bottom:20px;letter-spacing:-.02em}
 .trend-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
 .trend-bar{width:70%;background:linear-gradient(180deg,var(--accent),#8b8ef0);border-radius:3px 3px 0 0;min-height:2px}
 .trend-date{font-size:10px;color:var(--fill2);writing-mode:vertical-rl;transform:rotate(180deg);max-height:34px;overflow:hidden}
+.tabbar{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:90;display:flex;background:var(--bar-bg);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid var(--bar-line);border-radius:26px;box-shadow:var(--shadow-lg);padding:5px;gap:2px}
+.tabbar .titem{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--sub);text-decoration:none;padding:6px 15px;border-radius:20px;transition:background .15s ease,color .15s ease}
+.tabbar .titem .tic{font-size:20px;line-height:1}
+.tabbar .titem.on{color:#fff;background:var(--accent)}
+body{padding-bottom:88px;max-width:760px}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -636,9 +717,15 @@ h1{font-size:20px;margin-bottom:20px;letter-spacing:-.02em}
     {% endfor %}
   </div>
   {% else %}
-  <div style="color:#999;font-size:13px">暂无数据</div>
+  <div style="color:var(--fill2);font-size:13px">暂无数据</div>
   {% endif %}
 </div>
+<nav class="tabbar">
+  <a href="/" class="titem"><span class="tic">🏠</span>浏览</a>
+  <a href="/queue" class="titem"><span class="tic">📥</span>队列</a>
+  <a href="/stats" class="titem on"><span class="tic">📊</span>统计</a>
+  <a href="/?mode=manage" class="titem"><span class="tic">🗑️</span>管理</a>
+</nav>
 </body>
 </html>"""
 
