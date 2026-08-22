@@ -232,7 +232,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .card:active{transform:scale(.97);box-shadow:var(--shadow-lg)}
 
 /* 缩略图 */
-.cover{position:relative;width:100%;overflow:hidden;background:var(--fill)}
+.cover{position:relative;width:100%;overflow:hidden;background:var(--fill);min-height:110px}
 .cover img{width:100%;display:block;object-fit:cover;animation:imgIn .38s ease-out}
 .cover .empty{height:140px;display:flex;align-items:center;justify-content:center;font-size:36px;color:var(--fill2)}
 .cover .tag{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:2px 8px;border-radius:12px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
@@ -308,7 +308,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 <a class="card" href="/item/{{ it['id'] }}" {% if mode != 'manage' %}data-idx="{{ it['idx'] }}"{% endif %}>
   <div class="cover">
     {% if it['cover'] %}
-    <img src="{{ url_for('media', relpath=it['cover']) }}" loading="lazy">
+    <img src="{{ url_for('media', relpath=it['cover']) }}" {% if it['idx'] < 12 %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %}>
     {% else %}
     <div class="empty">{{ '🎬' if it['is_video'] else '🖼️' }}</div>
     {% endif %}
@@ -548,10 +548,14 @@ def db():
 
 @app.after_request
 def no_cache(resp):
-    """全局禁缓存：让 Safari/Chrome 永远拿最新页面，部署后无需手动强刷"""
-    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    resp.headers["Pragma"] = "no-cache"
-    resp.headers["Expires"] = "0"
+    """页面禁缓存（部署后无需强刷）；媒体文件给 10 分钟缓存（刷新秒出，不必重拉缩略图）"""
+    p = request.path
+    if p.startswith("/media/") or p.startswith("/avatar/") or p.startswith("/static/"):
+        resp.headers["Cache-Control"] = "public, max-age=600"
+    else:
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
     return resp
 
 def _natural_key(s):
