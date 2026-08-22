@@ -36,6 +36,35 @@ def save_queue(q):
         json.dump(q, f, ensure_ascii=False, indent=2)
     os.replace(tmp, QUEUE_FILE)
 
+Q_HEAD = """<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
+<title>队列 - 拾光集</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--accent:#0071e3;--bg:#f7f7f8;--card:#fff;--text:#18181b;--sub:#71717a;--border:#e8e8ec;--fill:#f0f0f4;--fill2:#a3a3ad;--shadow:0 1px 4px rgba(0,0,0,.06);--danger:#6e6e73}
+@media (prefers-color-scheme:dark){
+:root{color-scheme:dark;--accent:#0a84ff;--bg:#050507;--card:#1c1c1e;--text:#f5f5f7;--sub:#86868b;--border:#2c2c2e;--fill:#2c2c2e;--fill2:#636366;--shadow:0 1px 4px rgba(0,0,0,.45);--danger:#48484a}
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:640px;margin:0 auto}
+h2{font-size:18px;font-weight:750;letter-spacing:-.02em}
+.btn{border:none;border-radius:20px;padding:6px 14px;font-size:13px;color:#fff;cursor:pointer;transition:transform .1s ease}
+.btn:active{transform:scale(.96)}
+.btn.danger{background:var(--danger)}
+.btn.gray{background:var(--sub)}
+.meta{color:var(--sub);font-size:14px;margin:14px 0}
+.qcard{background:var(--card);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+tr.hdr th{background:var(--fill);font-size:13px;color:var(--sub);font-weight:600;border-bottom:1px solid var(--border)}
+td.empty{text-align:center;color:var(--fill2);padding:26px;border-bottom:none}
+.url{font-size:12px;color:var(--fill2);word-break:break-all}
+.back-line{margin-top:18px}
+.back-line a{color:var(--accent);text-decoration:none;font-size:14px}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+</style></head>
+<body>
+"""
+
 @app.route("/add", methods=["POST"])
 def add_link():
     raw = request.form.get("links", "").strip()
@@ -79,36 +108,34 @@ def queue_status():
         conn.close()
     except Exception:
         total = 0
-    html = f"""<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
-<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
-<title>队列 - 拾光集</title><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:system-ui;background:#f5f6fa;padding:20px;max-width:640px;margin:0 auto">
-<div style="display:flex;justify-content:space-between;align-items:center">
+    html = Q_HEAD
+    html += f"""<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
 <h2>📥 自动入库队列</h2>
-<div>
-<form method="post" action="/queue-clear-failed" style="display:inline" onsubmit="return confirm('清除所有失败的条目？')"><button style="background:#e5484d;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px">🗑️ 清空失败({fail_count})</button></form>
-<form method="post" action="/queue-clear-all" style="display:inline" onsubmit="return confirm('清空整个队列？(含进行中)')"><button style="background:#888;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px">✖️ 清空全部</button></form>
+<div style="display:flex;gap:8px">
+<form method="post" action="/queue-clear-failed" style="display:inline" onsubmit="return confirm('清除所有失败的条目？')"><button class="btn danger">🗑️ 清空失败({fail_count})</button></form>
+<form method="post" action="/queue-clear-all" style="display:inline" onsubmit="return confirm('清空整个队列？(含进行中)')"><button class="btn gray">✖️ 清空全部</button></form>
 </div>
 </div>
-<p style="color:#888;font-size:14px">收藏总数: {total} · 队列项: {len(q)} · 失败自动保留1天后清除</p>
-<table style="width:100%;border-collapse:collapse;font-size:14px">
-<tr style="background:#eee"><th style="text-align:left;padding:8px">平台</th><th>状态</th><th style="text-align:left">标题/链接</th></tr>
+<p class="meta">收藏总数: {total} · 队列项: {len(q)} · 失败自动保留1天后清除</p>
+<div class="qcard">
+<table>
+<tr class="hdr"><th style="text-align:left">平台</th><th style="text-align:center">状态</th><th style="text-align:left">标题/链接</th></tr>
 """
     if not q:
-        html += "<tr><td colspan='3' style='text-align:center;color:#bbb;padding:20px'>队列是空的</td></tr>"
+        html += "<tr><td colspan='3' class='empty'>队列是空的</td></tr>"
     for it in q[:30]:
         status = it.get("status", "pending")
         emoji = {"pending": "⏳", "processing": "⚙️", "done": "✅", "failed": "❌"}.get(status, "⏳")
-        color = {"pending": "#999", "processing": "#5b6ef5", "done": "#2f9e5f", "failed": "#e5484d"}.get(status, "#999")
+        color = {"pending": "#999", "processing": "var(--accent)", "done": "#2f9e5f", "failed": "#ff9f0a"}.get(status, "#999")
         plat = "抖音" if "douyin" in it["url"] or "iesdouyin" in it["url"] else ("小红书" if "xhslink" in it["url"] or "xiaohongshu" in it["url"] else "其他")
         title = it.get("title") or ""
         if title:
-            disp = f"{title}<br><span style='font-size:12px;color:#bbb'>{it['url'][:60]}</span>"
+            disp = f"{title}<br><span class='url'>{it['url'][:60]}</span>"
         else:
             disp = it["url"][:70]
         msg = f"<br><span style='font-size:12px;color:{color}'>{it.get('message','')}</span>" if it.get("message") else ""
-        html += f"<tr style='border-bottom:1px solid #eee'><td>{plat}</td><td style='color:{color}'>{emoji} {status}</td><td>{disp}{msg}</td></tr>"
-    html += "</table><p style='margin-top:20px'><a href='/'>← 返回收藏</a></p></body></html>"
+        html += f"<tr><td>{plat}</td><td style='color:{color};text-align:center'>{emoji} {status}</td><td>{disp}{msg}</td></tr>"
+    html += "</table></div><p class='back-line'><a href='/'>← 返回收藏</a></p></body></html>"
     return html
 
 # ─── 列表页 ──────────────────────────────────────────
@@ -120,70 +147,85 @@ INDEX_HTML = r"""<!DOCTYPE html>
 <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
 <title>拾光集</title>
 <style>
-:root{--accent:#5b6ef5;--bg:#f0f0f5;--card:#fff;--text:#1a1a1a;--sub:#888;--border:#ececf0}
+:root{--accent:#0071e3;--bg:#f7f7f8;--card:#fff;--text:#18181b;--sub:#71717a;--border:#e8e8ec;--fill:#f0f0f4;--fill2:#a3a3ad;--body:#444;--bar-bg:rgba(255,255,255,.72);--bar-line:rgba(0,0,0,.06);--shadow:0 1px 4px rgba(0,0,0,.06);--shadow-lg:0 2px 16px rgba(0,0,0,.12);--danger:#6e6e73;--radius:14px}
+@media (prefers-color-scheme:dark){
+:root{color-scheme:dark;--accent:#0a84ff;--bg:#050507;--card:#1c1c1e;--text:#f5f5f7;--sub:#86868b;--border:#2c2c2e;--fill:#2c2c2e;--fill2:#636366;--body:#c7c7cc;--bar-bg:rgba(10,10,12,.72);--bar-line:rgba(255,255,255,.08);--shadow:0 1px 4px rgba(0,0,0,.45);--shadow-lg:0 2px 16px rgba(0,0,0,.5);--danger:#48484a}
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);letter-spacing:0;-webkit-tap-highlight-color:transparent}
+@keyframes imgIn{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:scale(1)}}
 
-/* 顶栏 */
-.topbar{position:sticky;top:0;z-index:100;background:var(--card);border-bottom:1px solid var(--border);padding:12px 16px}
-.topbar h1{font-size:18px;font-weight:700;margin-bottom:10px}
+/* 顶栏 — 毛玻璃，跟随深浅色 */
+.topbar{position:sticky;top:0;z-index:100;padding:12px 16px;background:var(--bar-bg);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border-bottom:1px solid var(--bar-line);transition:box-shadow .25s ease}
+.topbar.is-scrolled{box-shadow:var(--shadow-lg)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.topbar{background:var(--card)}}
+.topbar h1{font-size:20px;font-weight:750;letter-spacing:-.025em;margin-bottom:10px}
 .search-row{display:flex;gap:8px}
-.search-row input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:20px;font-size:14px;outline:none;background:#f8f8fc}
-.search-row input:focus{border-color:var(--accent)}
+.search-row input{flex:1;padding:9px 14px;border:1px solid var(--border);border-radius:20px;font-size:14px;outline:none;background:var(--fill);color:var(--text);transition:border-color .15s ease,box-shadow .15s ease}
+.search-row input::placeholder{color:var(--fill2)}
+.search-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(10,132,255,.18)}
 .filter-row{display:flex;gap:6px;margin-top:8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.chip{padding:5px 14px;border-radius:20px;font-size:13px;white-space:nowrap;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--sub);transition:.15s}
+.chip{padding:5px 14px;border-radius:20px;font-size:13px;white-space:nowrap;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--sub);transition:all .15s ease;user-select:none}
+.chip:active{transform:scale(.96)}
 .chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.chip select{border:none;background:transparent;font-size:13px;outline:none}
+.chip select{border:none;background:transparent;font-size:13px;outline:none;color:var(--sub)}
 
 /* 统计 */
 .stat-bar{padding:8px 16px;font-size:12px;color:var(--sub)}
 
 /* 瀑布流 */
-.masonry{display:flex;gap:10px;padding:0 10px 20px;align-items:flex-start}
+.masonry{display:flex;gap:10px;padding:0 10px 20px;align-items:flex-start;max-width:1800px;margin:0 auto}
 .col{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
 
 /* 平板/桌面：封面限高 + 列数随宽度（列数由 JS 重排，见底部脚本） */
 @media(min-width:768px){
-  .cover img{max-height:420px}
+  .cover img{max-height:400px}
   .cover .empty{height:160px}
 }
-@media(min-width:1200px){
-  .cover img{max-height:360px}
+@media(min-width:1100px){
+  .cover img{max-height:380px}
   .cover .empty{height:150px}
+}
+@media(min-width:1400px){
+  .cover img{max-height:360px}
 }
 
 /* 卡片 */
-.card{break-inside:avoid;margin-bottom:10px;background:var(--card);border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);display:block;text-decoration:none;color:inherit;transition:box-shadow .15s}
-.card:active{box-shadow:0 0 0 2px var(--accent)}
+.card{break-inside:avoid;margin-bottom:10px;background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);display:block;text-decoration:none;color:inherit;transition:transform .1s ease,box-shadow .2s ease}
+.card:active{transform:scale(.97);box-shadow:var(--shadow-lg)}
 
 /* 缩略图 */
-.cover{position:relative;width:100%;overflow:hidden;background:#e8e8ee}
-.cover img{width:100%;display:block;object-fit:cover}
-.cover .empty{height:140px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#ccc}
-.cover .tag{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 8px;border-radius:12px}
+.cover{position:relative;width:100%;overflow:hidden;background:var(--fill)}
+.cover img{width:100%;display:block;object-fit:cover;animation:imgIn .38s ease-out}
+.cover .empty{height:140px;display:flex;align-items:center;justify-content:center;font-size:36px;color:var(--fill2)}
+.cover .tag{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:2px 8px;border-radius:12px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .cover .play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;background:rgba(0,0,0,.5);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;pointer-events:none}
 
 /* 信息行 */
 .info{padding:8px 10px;display:flex;align-items:center;gap:4px}
 .info .av{width:20px;height:20px;border-radius:50%;flex-shrink:0;background:#eee;object-fit:cover}
 .info .av.hide{display:none}
-.info .who{font-size:12px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;text-decoration:none}
+.info .who{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;text-decoration:none}
 .info .when{font-size:10px;color:var(--sub);flex-shrink:0}
 
-.no-result{padding:80px 20px;text-align:center;color:var(--sub);font-size:15px}
+.no-result{padding:70px 24px;text-align:center;color:var(--sub);font-size:15px}
+.no-result .ic{font-size:42px;display:block;margin-bottom:14px;opacity:.5}
+.no-result .tip{font-size:13px;color:var(--fill2);margin-top:8px}
+
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
 <div class="topbar">
-  <h1>拾光集 <a href="/stats" style="font-size:13px;color:#eef;text-decoration:none;margin-left:8px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">📊 统计</a> <a href="/?mode=manage" style="font-size:13px;color:#eef;text-decoration:none;margin-left:6px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px">🗑️ 管理</a> <a href="/queue" style="font-size:13px;color:#eef;text-decoration:none;margin-left:6px;background:rgba(91,110,245,.5);padding:4px 10px;border-radius:20px">📥 队列</a></h1>
+  <h1>拾光集 <a href="/stats" style="font-size:13px;color:var(--sub);text-decoration:none;margin-left:8px;background:var(--fill);padding:4px 10px;border-radius:20px">📊 统计</a> <a href="/?mode=manage" style="font-size:13px;color:var(--sub);text-decoration:none;margin-left:6px;background:var(--fill);padding:4px 10px;border-radius:20px">🗑️ 管理</a> <a href="/queue" style="font-size:13px;color:#fff;text-decoration:none;margin-left:6px;background:var(--accent);padding:4px 10px;border-radius:20px">📥 队列</a></h1>
   <form method="post" action="/add" class="search-row" style="margin-bottom:8px">
-    <input type="text" name="links" placeholder="粘贴抖音/小红书链接，自动入库（多条用空格或逗号分隔）" {% if request.args.get('msg')=='added' %}style="border-color:#2f9e5f"{% endif %}>
-    <button type="submit" style="padding:8px 16px;border:none;border-radius:20px;background:#5b6ef5;color:#fff;font-size:14px;white-space:nowrap">入库</button>
+    <input type="text" name="links" placeholder="粘贴抖音/小红书链接，自动入库（多条用空格或逗号分隔）" {% if request.args.get('msg')=='added' %}style="border-color:#30d158"{% endif %}>
+    <button type="submit" style="padding:8px 16px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:14px;white-space:nowrap;transition:transform .1s ease">入库</button>
   </form>
   {% if request.args.get('msg') == 'added' %}
-  <div style="color:#2f9e5f;font-size:12px;margin:-4px 2px 8px">✅ 已加入队列，处理中请稍候到「📥 队列」查看</div>
+  <div style="color:#30d158;font-size:12px;margin:-4px 2px 8px">✅ 已加入队列，处理中请稍候到「📥 队列」查看</div>
   {% elif request.args.get('msg') == 'no_link' %}
-  <div style="color:#e5484d;font-size:12px;margin:-4px 2px 8px">没有识别到有效链接</div>
+  <div style="color:#ff453a;font-size:12px;margin:-4px 2px 8px">没有识别到有效链接</div>
   {% endif %}
   <form class="search-row" method="get">
     <input type="text" name="q" placeholder="搜索标题/作者/内容…" value="{{ q }}">
@@ -205,7 +247,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 <div class="stat-bar">共 {{ total }} 条收藏{% if author %} · 作者: {{ author }}{% endif %}</div>
 
 {% if not items %}
-<div class="no-result">没有找到内容</div>
+<div class="no-result"><span class="ic">🗂️</span>没有找到内容<span class="tip">{% if q %}换个关键词试试{% else %}在顶部粘贴链接，收藏第一条内容吧{% endif %}</span></div>
 {% endif %}
 
 {% if mode == 'manage' %}
@@ -217,7 +259,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 {% for it in col %}
 {% if mode == 'manage' %}
 <div style="position:relative;width:100%" data-idx="{{ it['idx'] }}">
-  <input type="checkbox" name="ids" value="{{ it['id'] }}" style="position:absolute;top:8px;right:8px;z-index:5;width:20px;height:20px;accent-color:#e74c3c">
+  <input type="checkbox" name="ids" value="{{ it['id'] }}" style="position:absolute;top:8px;right:8px;z-index:5;width:20px;height:20px;accent-color:var(--accent)">
 {% endif %}
 <a class="card" href="/item/{{ it['id'] }}" {% if mode != 'manage' %}data-idx="{{ it['idx'] }}"{% endif %}>
   <div class="cover">
@@ -242,9 +284,9 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 </div>
 {% endfor %}
 {% if mode == 'manage' %}
-<div style="position:fixed;bottom:0;left:0;right:0;background:var(--card);padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;z-index:50;box-shadow:0 -2px 8px rgba(0,0,0,.08)">
-  <label style="font-size:13px;color:var(--sub);display:flex;align-items:center;gap:4px"><input type="checkbox" id="selAll" style="width:16px;height:16px"> 全选</label>
-  <button type="submit" style="background:#e74c3c;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;cursor:pointer">删除选中</button>
+<div style="position:fixed;bottom:0;left:0;right:0;background:var(--card);padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;z-index:50;box-shadow:var(--shadow-lg)">
+  <label style="font-size:13px;color:var(--sub);display:flex;align-items:center;gap:4px"><input type="checkbox" id="selAll" style="width:16px;height:16px;accent-color:var(--accent)"> 全选</label>
+  <button type="submit" style="background:var(--danger);color:#fff;border:none;padding:8px 20px;border-radius:10px;font-size:13px;cursor:pointer;transition:transform .1s ease">删除选中</button>
   <a href="/" style="font-size:13px;color:var(--sub);text-decoration:none">退出管理</a>
 </div>
 </form>
@@ -257,7 +299,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
   function relayout(){
     var wrap=document.querySelector('.masonry'); if(!wrap) return;
     var w=window.innerWidth;
-    var n = w>=1200 ? 4 : (w>=768 ? 3 : 2);
+    var n = w>=1800 ? 6 : (w>=1400 ? 5 : (w>=1100 ? 4 : (w>=768 ? 3 : 2)));
     if(wrap.dataset.cols===String(n)) return;
     wrap.dataset.cols=n;
     var cards=[].slice.call(wrap.querySelectorAll(':scope > .col > [data-idx]'));
@@ -273,6 +315,17 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
   else{document.addEventListener('DOMContentLoaded',relayout);}
 })();
 </script>
+<script>
+/* 顶栏滚动边界反馈：内容滚过顶栏时加阴影（IntersectionObserver，无滚动监听） */
+(function(){
+  var tb=document.querySelector('.topbar');
+  if(!tb||!('IntersectionObserver' in window)) return;
+  var mark=document.createElement('div');
+  mark.style.cssText='position:absolute;top:0;left:0;width:1px;height:1px;pointer-events:none';
+  document.body.appendChild(mark);
+  new IntersectionObserver(function(en){tb.classList.toggle('is-scrolled',!en[0].isIntersecting);},{threshold:0}).observe(mark);
+})();
+</script>
 </body>
 </html>"""
 
@@ -285,38 +338,43 @@ DETAIL_HTML = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{ it['title'] or '详情' }} - 拾光集</title>
 <style>
-:root{--accent:#5b6ef5;--bg:#f0f0f5;--card:#fff;--text:#1a1a1a;--sub:#888;--border:#ececf0}
+:root{--accent:#0071e3;--bg:#f7f7f8;--card:#fff;--text:#18181b;--sub:#71717a;--border:#e8e8ec;--fill:#f0f0f4;--fill2:#a3a3ad;--body:#444;--shadow:0 2px 10px rgba(0,0,0,.06);--shadow-lg:0 2px 16px rgba(0,0,0,.12);--danger:#6e6e73;--radius:14px}
+@media (prefers-color-scheme:dark){
+:root{color-scheme:dark;--accent:#0a84ff;--bg:#050507;--card:#1c1c1e;--text:#f5f5f7;--sub:#86868b;--border:#2c2c2e;--fill:#2c2c2e;--fill2:#636366;--body:#c7c7cc;--shadow:0 2px 10px rgba(0,0,0,.5);--shadow-lg:0 2px 16px rgba(0,0,0,.5);--danger:#48484a}
+}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text)}
 
 .page{max-width:860px;margin:0 auto;padding:16px}
-.back{font-size:14px;color:var(--accent);text-decoration:none;display:inline-block;margin-bottom:12px}
+.back{font-size:14px;color:var(--accent);text-decoration:none;display:inline-block;margin-bottom:12px;padding:6px 14px;border:1px solid var(--border);border-radius:20px;background:var(--card);transition:transform .1s ease}
+.back:active{transform:scale(.96)}
 
-.card-box{background:var(--card);border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.card-box{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
 
 /* 标题 */
-.title{padding:16px 16px 0;font-size:18px;font-weight:700;line-height:1.4}
+.title{padding:16px 16px 0;font-size:19px;font-weight:750;line-height:1.4;letter-spacing:-.02em}
 
 /* 作者信息条 — 纯 flex 行 */
 .author-bar{padding:10px 16px;display:flex;align-items:center;gap:8px}
 .author-bar .av{width:32px;height:32px;border-radius:50%;flex-shrink:0;background:#eee;object-fit:cover}
 .author-bar .av.hide{display:none}
 .author-bar .name{font-size:14px;color:var(--accent);text-decoration:none;font-weight:500}
-.author-bar .plat{font-size:11px;color:var(--sub);background:#f0f0f5;padding:2px 8px;border-radius:12px}
+.author-bar .plat{font-size:11px;color:var(--sub);background:var(--fill);padding:2px 8px;border-radius:12px}
 .author-bar .time{font-size:12px;color:var(--sub);margin-left:auto;white-space:nowrap}
 
 /* 正文 */
-.content{padding:0 16px 12px;font-size:14px;line-height:1.6;color:#444;white-space:pre-wrap}
+.content{padding:0 16px 12px;font-size:14px;line-height:1.7;color:var(--body);white-space:pre-wrap}
 
 /* 媒体预览 */
 .media-area{padding:0 16px 16px}
-.media-area video{width:100%;border-radius:10px;background:#000;margin-bottom:10px}
+.media-area video{width:100%;max-height:72vh;border-radius:12px;background:#000;margin:0 auto 10px;display:block;box-shadow:var(--shadow)}
 
-.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px}
-.img-grid a{display:block;aspect-ratio:1;overflow:hidden;border-radius:8px;background:#f0f0f4;cursor:pointer}
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.img-grid a{display:block;aspect-ratio:1;overflow:hidden;border-radius:12px;background:var(--fill);cursor:pointer;transition:transform .1s ease}
+.img-grid a:active{transform:scale(.96)}
 .img-grid a img{width:100%;height:100%;object-fit:cover}
 
-.single-img{width:100%;border-radius:10px;cursor:pointer}
+.single-img{width:100%;max-height:80vh;object-fit:contain;border-radius:12px;cursor:pointer;background:var(--fill)}
 
 /* Lightbox */
 .lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center;flex-direction:column;padding:16px}
@@ -335,6 +393,9 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 
 .orig{padding:0 16px 16px;font-size:12px;color:var(--sub);word-break:break-all}
 .orig a{color:var(--accent);text-decoration:none}
+.del-btn{background:var(--danger);color:#fff;border:none;padding:10px 22px;border-radius:12px;font-size:14px;cursor:pointer;transition:transform .1s ease,opacity .15s ease}
+.del-btn:active{transform:scale(.96);opacity:.85}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
@@ -342,7 +403,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
   <a class="back" href="/">← 返回</a>
   <div class="card-box">
     <div class="title">{{ it['title'] or '无标题' }}</div>
-    <div style="padding:4px 16px 0;font-size:11px;color:var(--sub)">ID: <code style="background:#f0f0f5;padding:1px 6px;border-radius:4px;color:var(--sub)">{{ it['id'] }}</code></div>
+    <div style="padding:4px 16px 0;font-size:11px;color:var(--sub)">ID: <code style="background:var(--fill);padding:1px 6px;border-radius:4px;color:var(--sub)">{{ it['id'] }}</code></div>
     <div class="author-bar">
       <img class="av" src="/avatar/{{ it['id'] }}" onerror="this.classList.add('hide')">
       <a class="name" href="/?author={{ it['author_name']|urlencode }}">{{ it['author_name'] or '未知作者' }}</a>
@@ -377,7 +438,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
     {% if it['original_url'] %}<div class="orig">🔗 <a href="{{ it['original_url'] }}" target="_blank">{{ it['original_url'] }}</a></div>{% endif %}
     <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
       <form method="post" action="/delete/{{ it['id'] }}" onsubmit="return confirm('确定删除这条收藏？本地文件也会一并删除！')">
-        <button type="submit" style="background:#e74c3c;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-size:14px;cursor:pointer">🗑️ 删除这条收藏</button>
+        <button type="submit" class="del-btn">🗑️ 删除这条收藏</button>
       </form>
     </div>
   </div>
@@ -408,6 +469,14 @@ def db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+@app.after_request
+def no_cache(resp):
+    """全局禁缓存：让 Safari/Chrome 永远拿最新页面，部署后无需手动强刷"""
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 def _natural_key(s):
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', s)]
@@ -505,20 +574,27 @@ STATS_HTML = """<!DOCTYPE html>
 <title>统计 - 拾光集</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#222;padding:20px;max-width:760px;margin:0 auto}
-h1{font-size:20px;margin-bottom:20px}
-.back{display:inline-block;margin-bottom:16px;color:#667eea;text-decoration:none;font-size:14px}
-.card{background:#fff;border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.card h2{font-size:15px;margin-bottom:14px;color:#444}
+:root{--accent:#0071e3;--bg:#f7f7f8;--card:#fff;--text:#18181b;--sub:#71717a;--border:#e8e8ec;--fill:#f0f0f4;--fill2:#a3a3ad;--shadow:0 1px 4px rgba(0,0,0,.06)}
+@media (prefers-color-scheme:dark){
+:root{color-scheme:dark;--accent:#0a84ff;--bg:#050507;--card:#1c1c1e;--text:#f5f5f7;--sub:#86868b;--border:#2c2c2e;--fill:#2c2c2e;--fill2:#636366;--shadow:0 1px 4px rgba(0,0,0,.45)}
+}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:760px;margin:0 auto}
+h1{font-size:20px;margin-bottom:20px;letter-spacing:-.02em}
+.back{display:inline-block;margin-bottom:16px;color:var(--accent);text-decoration:none;font-size:14px;padding:6px 14px;border:1px solid var(--border);border-radius:20px;background:var(--card);transition:transform .1s ease}
+.back:active{transform:scale(.96)}
+.card{background:var(--card);border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.card h2{font-size:15px;margin-bottom:14px;color:var(--sub)}
 .row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.row .label{width:90px;font-size:13px;color:#666;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bar{height:22px;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:4px;min-width:2px;transition:width .4s}
-.row .num{font-size:12px;color:#999;flex-shrink:0}
-.total{font-size:14px;color:#888;margin-bottom:16px}
+.row .label{width:90px;font-size:13px;color:var(--sub);flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .label a{color:var(--accent)}
+.bar{height:22px;background:linear-gradient(90deg,var(--accent),#8b8ef0);border-radius:4px;min-width:2px;transition:width .4s}
+.row .num{font-size:12px;color:var(--fill2);flex-shrink:0}
+.total{font-size:14px;color:var(--sub);margin-bottom:16px}
 .trend-grid{display:flex;align-items:flex-end;gap:4px;height:120px;padding-top:10px}
 .trend-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
-.trend-bar{width:70%;background:linear-gradient(180deg,#667eea,#764ba2);border-radius:3px 3px 0 0;min-height:2px}
-.trend-date{font-size:10px;color:#aaa;writing-mode:vertical-rl;transform:rotate(180deg);max-height:34px;overflow:hidden}
+.trend-bar{width:70%;background:linear-gradient(180deg,var(--accent),#8b8ef0);border-radius:3px 3px 0 0;min-height:2px}
+.trend-date{font-size:10px;color:var(--fill2);writing-mode:vertical-rl;transform:rotate(180deg);max-height:34px;overflow:hidden}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
@@ -541,7 +617,7 @@ h1{font-size:20px;margin-bottom:20px}
   <h2>👤 作者 Top 10</h2>
   {% for a in authors %}
   <div class="row">
-    <span class="label"><a href="/?author={{ a['author_name']|urlencode }}" style="color:#667eea;text-decoration:none">{{ a['author_name'] }}</a></span>
+    <span class="label"><a href="/?author={{ a['author_name']|urlencode }}" style="color:var(--accent);text-decoration:none">{{ a['author_name'] }}</a></span>
     <div class="bar" style="width:{{ (a['c'] / max_a * 100)|int }}%"></div>
     <span class="num">{{ a['c'] }}</span>
   </div>
